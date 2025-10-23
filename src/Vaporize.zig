@@ -9,6 +9,7 @@ const List = Static.List;
 const ListItem = Static.ListItem;
 const Code = Static.Code;
 const Graphic = Static.Graphic;
+const Section = Static.Section;
 const CodeEditor = @import("CodeEditor.zig");
 
 /// ## The Abstract Syntax Tree (AST)
@@ -28,6 +29,7 @@ pub const NodeType = enum {
     ListItem, // <-- NEW
     Image, // <-- NEW
     CodeBlock,
+    Section,
 };
 
 /// A single node in the AST.
@@ -56,6 +58,9 @@ pub const Node = struct {
             editor: *CodeEditor,
             content: []const u8,
             language: ?[]const u8,
+        },
+        section: struct {
+            id: []const u8,
         },
         none: void,
     },
@@ -98,31 +103,53 @@ pub const Parser = struct {
     /// The main parsing function. Returns the Root node of the AST.
     pub fn parse(self: *Parser) !*Node {
         const root = try self.createNode(.Root);
-        var last_node: ?*Node = null;
+        var last_section: ?*Node = null;
 
         while (!self.isAtEnd()) {
-            // 1. Skip blank lines between blocks
             self.skipBlankLines();
             if (self.isAtEnd()) break;
 
-            // 2. Parse the next block
             const block = try self.parseBlock();
 
-            // 3. Link the new block into the Root's child list
-            if (last_node) |last| {
-                last.next = block;
-            } else {
-                root.child = block;
+            switch (block.tag) {
+                .Section => {
+                    // New section begins
+                    if (last_section) |section| {
+                        section.next = block;
+                    } else {
+                        root.child = block;
+                    }
+                    last_section = block;
+                },
+                else => {
+                    // Add block to current section (or root if no section yet)
+                    const parent = last_section orelse root;
+                    self.attachChild(parent, block);
+                },
             }
-            last_node = block;
         }
+
         return root;
+    }
+
+    /// Attaches `child` to the end of `parent`'s child list.
+    fn attachChild(_: *Parser, parent: *Node, child: *Node) void {
+        if (parent.child) |first| {
+            var last = first;
+            while (last.next) |next| {
+                last = next;
+            }
+            last.next = child;
+        } else {
+            parent.child = child;
+        }
     }
 
     /// Dispatches to the correct block parser based on the current char.
     fn parseBlock(self: *Parser) !*Node {
         const char = self.peek();
         switch (char) {
+            '{' => return self.parseSection(),
             '#' => return self.parseHeading(),
             '-', '*', '+' => {
                 if (self.isListItemStart()) return self.parseList();
@@ -191,6 +218,27 @@ pub const Parser = struct {
             self.source[self.pos] == '`' and
             self.source[self.pos + 1] == '`' and
             self.source[self.pos + 2] == '`';
+    }
+
+    fn parseSection(self: *Parser) !*Node {
+        while (self.peek() != '#') {
+            _ = self.advance();
+        }
+        _ = self.advance();
+
+        const line_start = self.pos;
+        self.consumeLine(); // Advance pos to the end of the line
+        const line_end = self.pos - 1;
+
+        // Get the content slice (and trim whitespace)
+        const content = std.mem.trim(u8, self.source[line_start..line_end], " \t");
+
+        // Create the Heading node
+        const node = try self.createNode(.Section);
+        node.data = .{ .section = .{ .id = content } };
+
+        // 3. Link the new block into the Root's child list
+        return node;
     }
 
     /// Parses a heading, e.g., "## My Title"
@@ -306,7 +354,6 @@ pub const Parser = struct {
         while (cursor < content.len) {
             const char = content[cursor];
             switch (char) {
-                // Check for Bold: **
                 '!' => {
                     // Markdown image syntax: ![alt](src)
                     if (cursor + 1 < content.len and content[cursor + 1] == '[') {
@@ -730,6 +777,26 @@ pub fn traverse(node: ?*Node, style: Style) !void {
                     .level = style.level,
                 });
             },
+            .Section => {
+                // This node doesn't render itself.
+                // It just tells its *children* to be bold.
+                // We do this by passing a *modified* style struct.
+                Section.id(n.data.section.id).style(&.{
+                    .child_gap = 4,
+                    .direction = .column,
+                    .size = .hw(.percent(100), .percent(100)),
+                    .layout = .{},
+                })({
+                    try traverse(n.child, .{
+                        .is_bold = style.is_bold,
+                        .is_italic = style.is_italic,
+                        .code_color = style.code_color,
+                        .text_color = style.text_color,
+                        .heading_color = style.heading_color,
+                        .level = style.level,
+                    });
+                });
+            },
             .Italic => {
                 // Same as Bold, but for italic
                 try traverse(n.child, .{
@@ -805,4 +872,3 @@ pub fn main() !void {
     try traversePrint(root_node, stdout, 0);
     stdout.flush() catch {};
 }
-
