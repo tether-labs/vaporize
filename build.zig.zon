@@ -32,12 +32,10 @@
     // Once all dependencies are fetched, `zig build` no longer requires
     // internet connectivity.
     .dependencies = .{
-        .fabric = .{
-            .path = "../fabric",
-            // .url = "https://github.com/tether-labs/fabric/archive/refs/tags/v1.1.3.tar.gz",
-            // .hash = "fabric-0.0.0-KeTeudyDBwBJm-xvopUQvHLnl1KGzeBcif21pa8XP18Z",
+        .vapor = .{
+            .url = "https://github.com/tether-labs/vapor/archive/refs/tags/v1.1.5.tar.gz",
+            .hash = "vapor-0.0.0-VGoNdS0GEgC-A77c7_BvFVVSbJycjgUXgQuyRaUq0C3U",
         },
-
         // See `zig fetch --save <url>` for a command-line interface for adding dependencies.
         //.example = .{
         //    // When updating this field to a new URL, be sure to delete the corresponding

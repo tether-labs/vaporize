@@ -1,16 +1,15 @@
 const std = @import("std");
-const Fabric = @import("fabric");
-const Pure = Fabric.Pure;
-const Static = Fabric.Static;
+const Vapor = @import("vapor");
+const Static = Vapor.Static;
 const CtxButton = Static.CtxButton;
 const Box = Static.Box;
 const Graphic = Static.Graphic;
-const Icon = Pure.Icon;
+const Icon = Vapor.Icon;
 const Text = Static.Text;
-const Color = Fabric.Types.Color;
+const Color = Vapor.Types.Color;
 // const code = @import("code/FormCode.zig").code;
 
-const Signal = Fabric.Signal;
+const Signal = Vapor.Signal;
 
 const NewLine = struct {
     processed_text: []TextDetails = undefined,
@@ -34,15 +33,15 @@ local_copy_code: []const u8 = undefined,
 
 fn toggleIcon(code_editor: *CodeEditor) void {
     code_editor.show_cpy_btn = false;
-    Fabric.cycle();
+    Vapor.cycle();
     // code_editor.show_cpy_btn.set(false);
 }
 
 fn copy(code_editor: *CodeEditor) void {
-    Fabric.Clipboard.copy(code_editor.local_copy_code);
+    Vapor.Clipboard.copy(code_editor.local_copy_code);
     code_editor.show_cpy_btn = true;
-    Fabric.cycle();
-    Fabric.registerCtxTimeout(1000, toggleIcon, .{code_editor});
+    Vapor.cycle();
+    Vapor.registerCtxTimeout("copy_btn_editor", 500, toggleIcon, .{code_editor});
 }
 
 pub fn initWrapper(ptr: *anyopaque, allocator: *std.mem.Allocator, code: []const u8) void {
@@ -58,7 +57,7 @@ pub fn init(target: *CodeEditor, allocator: *std.mem.Allocator, code: []const u8
     // target.show_cpy_btn.init(false);
     target.local_copy_code = code;
     target.tokenize(code) catch |err| {
-        Fabric.println("Tokenize error {any}\n", .{err});
+        Vapor.println("Tokenize error {any}\n", .{err});
         return;
     };
 }
@@ -84,17 +83,17 @@ pub fn deinit(code_editor: *CodeEditor) void {
 }
 
 pub inline fn Code() fn (void) void {
-    const elem_decl = Fabric.ElementDecl{
+    const elem_decl = Vapor.ElementDecl{
         .state_type = .static,
         .elem_type = .Code,
         // .style = &.{},
     };
-    _ = Fabric.LifeCycle.open(elem_decl);
-    Fabric.LifeCycle.configure(elem_decl);
-    return Fabric.LifeCycle.close;
+    _ = Vapor.LifeCycle.open(elem_decl);
+    Vapor.LifeCycle.configure(elem_decl);
+    return Vapor.LifeCycle.close;
 }
 pub fn render(code_editor: *CodeEditor, _: f32) void {
-    Box.style(&.{
+    Box().style(&.{
         .size = .square_percent(100),
         .scroll = .scroll_y(),
         .show_scrollbar = false,
@@ -102,11 +101,12 @@ pub fn render(code_editor: *CodeEditor, _: f32) void {
         .layout = .{ .x = .start, .y = .start },
         .visual = .{
             .background = .palette(.code_background),
+            .border = .simple(.palette(.disabled)),
             // .border_radius = .all(8),
         },
         .padding = .tb(10, 10),
     })({
-        Box.style(&.{
+        Box().style(&.{
             .layout = .x_between_center,
             .size = .w(.percent(100)),
             .padding = .tblr(0, 8, 12, 12),
@@ -114,25 +114,25 @@ pub fn render(code_editor: *CodeEditor, _: f32) void {
                 .border = .bottom(.palette(.disabled)),
             },
         })({
-            Box.style(&.{
+            Box().style(&.{
                 .size = .h(.percent(100)),
                 .child_gap = 8,
             })({
-                // Box.style(&.{
+                // Box().style(&.{
                 //     .size = .square_px(14),
                 //     .visual = .{ .border_radius = .all(0), .background = .hex("#FF0000") },
                 // })({});
-                // Box.style(&.{
+                // Box().style(&.{
                 //     .size = .square_px(14),
                 //     .visual = .{ .border_radius = .all(0), .background = .hex("#FFFF00") },
                 // })({});
-                // Box.style(&.{
+                // Box().style(&.{
                 //     .size = .square_px(14),
                 //     .visual = .{ .border_radius = .all(0), .background = .hex("#09FF00") },
                 // })({});
-                Text("Example").font(14, 600, .palette(.text_color)).close();
+                Text("Example").font(14, 600, .palette(.text_color)).end();
             });
-            Box.style(&.{
+            Box().style(&.{
                 .size = .w(.percent(10)),
                 .layout = .x_even_center,
             })({
@@ -177,11 +177,11 @@ pub fn render(code_editor: *CodeEditor, _: f32) void {
                 // });
                 Graphic(.{ .src = "/src/assets/zig_simple.svg" }).style(&.{
                     .size = .{ .height = .px(16), .width = .px(16) },
-                    .visual = .{ .text_color = .palette(.tint) },
+                    .visual = .{ .text_color = .palette(.tint), .fill = .palette(.tint) },
                 });
             });
         });
-        Box.style(&.{
+        Box().style(&.{
             .size = .square_percent(100),
             .scroll = .scroll_x(),
             .direction = .column,
@@ -191,25 +191,26 @@ pub fn render(code_editor: *CodeEditor, _: f32) void {
             Code()({
                 for (code_editor.processed_lines.items) |line| {
                     const color = if (line.is_removed) blk: {
-                        break :blk Fabric.Types.Background.transparentizeHex(.hex("#FF0000"), 0.1);
+                        break :blk Vapor.Types.Background.transparentizeHex(.hex("#FF0000"), 0.1);
                     } else if (line.is_added) blk: {
-                        break :blk Fabric.Types.Background.transparentizeHex(.hex("#00FF00"), 0.1);
+                        break :blk Vapor.Types.Background.transparentizeHex(.hex("#00FF00"), 0.1);
                     } else blk: {
-                        break :blk Fabric.Types.Background.transparent;
+                        break :blk Vapor.Types.Background.transparent;
                     };
-                    Box.style(&.{
-                        .size = .h(.px(20)),
+                    Box().style(&.{
+                        .size = .h(.px(18)),
                         .white_space = .pre,
                         .layout = .left_center,
                         .padding = .l(24),
                         .visual = .{ .background = color },
-                        .font_family = "JetBrains Mono,Fira Code,Consolas,monospace",
+                        .font_family = "DM Mono, monospace", // "IBM Plex Mono,monospace",
+                        // .font_family = "IBM Plex Mono,monospace",
                     })({
                         for (line.processed_text) |word| {
                             Text(word.text).style(&.{
                                 .visual = .{
-                                    .font_size = if (Fabric.isMobile()) 16 else 16,
-                                    .font_weight = 500,
+                                    .font_size = if (Vapor.isMobile()) 16 else 15,
+                                    .font_weight = 400,
                                     .text_color = word.color,
                                 },
                             });
@@ -228,13 +229,18 @@ const Declarations = enum {
     @"while",
     @"fn",
     @"switch",
+    @"return",
+    @"break",
+    @"struct",
+    @"enum",
+    @"union",
+    @"export",
+    @"extern",
     @"try",
     @"if",
     @"else",
     @"pub",
-    // Static,
-    // Pure,
-    // Box,
+    @"for",
 };
 
 pub fn includes(haystack: []const u8, needle: []const u8) bool {
@@ -314,11 +320,11 @@ fn parseSubText(allocator: *std.mem.Allocator, processed_text: *std.array_list.M
                 text_deets.text = try std.fmt.allocPrint(allocator.*, "{s}", .{sub_slice});
                 try processed_text.append(text_deets);
             } else if (includes(sub_slice, "Box")) {
-                // text_deets.color = Fabric.hexToRgba("#E5FF54");
+                // text_deets.color = Vapor.hexToRgba("#E5FF54");
                 text_deets.text = try std.fmt.allocPrint(allocator.*, "{s}", .{sub_slice});
                 try processed_text.append(text_deets);
             } else if (includes(sub_slice, "Text")) {
-                // text_deets.color = Fabric.hexToRgba("#E5FF54");
+                // text_deets.color = Vapor.hexToRgba("#E5FF54");
                 text_deets.text = try std.fmt.allocPrint(allocator.*, "{s}", .{sub_slice});
                 try processed_text.append(text_deets);
             } else {
@@ -434,8 +440,16 @@ pub fn tokenize(code_editor: *CodeEditor, text: []const u8) !void {
                         Declarations.@"if",
                         Declarations.@"else",
                         Declarations.@"pub",
+                        Declarations.@"return",
+                        Declarations.@"break",
+                        Declarations.@"struct",
+                        Declarations.@"enum",
+                        Declarations.@"union",
+                        Declarations.@"export",
+                        Declarations.@"extern",
+                        Declarations.@"for",
                         => {
-                            text_deets.color = .palette(.tint);
+                            text_deets.color = .palette(.code_tint_color);
                         },
                     }
                     text_deets.text = result;
@@ -445,7 +459,7 @@ pub fn tokenize(code_editor: *CodeEditor, text: []const u8) !void {
                     try parseSubText(allocator, &processed_texts, result);
                     allocator.free(result);
                 } else if (includes(result, "(") and containsAlphabetic(result)) {
-                    // Fabric.println("Found bracket ( {s}", .{result});
+                    // Vapor.println("Found bracket ( {s}", .{result});
                     var split = std.mem.splitScalar(u8, result, '(');
                     text_deets.color = .palette(.code_keyword_color);
                     text_deets.text = try std.fmt.allocPrint(allocator.*, "{s}", .{split.next().?});
@@ -460,7 +474,7 @@ pub fn tokenize(code_editor: *CodeEditor, text: []const u8) !void {
                 }
             } else {
                 text_deets.text = result;
-                // text_deets.color = Fabric.hexToRgba("#88859D");
+                // text_deets.color = Vapor.hexToRgba("#88859D");
                 try processed_texts.append(text_deets);
             }
         }
