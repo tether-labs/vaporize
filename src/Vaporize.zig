@@ -1366,7 +1366,7 @@ pub fn parseTraverse(markdown: []const u8, allocator: std.mem.Allocator) !void {
 }
 
 pub const StyleConfig = struct {
-    code_style: Vapor.Types.Style = .{ .visual = .{ .text_color = .hex("#212121") } },
+    code_style: Vapor.Types.Style = .{ .visual = .{ .text_color = .hex("#212121"), .background = .white } },
     text_style: Vapor.Types.Style = .{ .visual = .{ .text_color = .hex("#212121") } },
     heading_style: Vapor.Types.Style = .{ .visual = .{ .text_color = .hex("#333333") } },
     text_field_style: Vapor.Types.Style = .{
@@ -1789,7 +1789,7 @@ pub fn traverse(self: *Self, node: ?*Node, style: Style, value: anytype) !void {
                         .layout = .center,
                         .size = .{ .width = .percent(70), .height = .auto },
                         .visual = .{ .fill = self.style_config.text_style.visual.?.text_color, .stroke = self.style_config.text_style.visual.?.text_color },
-                        // .aspect_ratio = .landscape,
+                        .aspect_ratio = .landscape,
                     });
                 });
             },
@@ -1888,9 +1888,13 @@ pub fn traverse(self: *Self, node: ?*Node, style: Style, value: anytype) !void {
             .CodeBlock => |_| {
                 var editor = n.data.code_block.editor;
                 Box().style(&.{
-                    .size = .{ .width = .percent(100), .height = .fit },
+                    .size = .{ .width = .percent(100), .height = .percent(100) },
                     .margin = .tb(16, 32),
                     .layout = .center,
+                    .visual = .{
+                        .background = self.style_config.code_style.visual.?.background,
+                        .border = self.style_config.code_style.visual.?.border,
+                    },
                 })({
                     editor.renderAST(editor.root) catch unreachable;
                 });

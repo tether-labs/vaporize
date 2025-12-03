@@ -10,6 +10,13 @@ const Graphic = Vapor.Graphic;
 const List = Vapor.List;
 const ListItem = Vapor.ListItem;
 
+const svg_bug =
+    \\<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="white" class="bi bi-bug-fill" viewBox="0 0 16 16">
+    \\  <path d="M4.978.855a.5.5 0 1 0-.956.29l.41 1.352A5 5 0 0 0 3 6h10a5 5 0 0 0-1.432-3.503l.41-1.352a.5.5 0 1 0-.956-.29l-.291.956A5 5 0 0 0 8 1a5 5 0 0 0-2.731.811l-.29-.956z"/>
+    \\  <path d="M13 6v1H8.5v8.975A5 5 0 0 0 13 11h.5a.5.5 0 0 1 .5.5v.5a.5.5 0 1 0 1 0v-.5a1.5 1.5 0 0 0-1.5-1.5H13V9h1.5a.5.5 0 0 0 0-1H13V7h.5A1.5 1.5 0 0 0 15 5.5V5a.5.5 0 0 0-1 0v.5a.5.5 0 0 1-.5.5zm-5.5 9.975V7H3V6h-.5a.5.5 0 0 1-.5-.5V5a.5.5 0 0 0-1 0v.5A1.5 1.5 0 0 0 2.5 7H3v1H1.5a.5.5 0 0 0 0 1H3v1h-.5A1.5 1.5 0 0 0 1 11.5v.5a.5.5 0 1 0 1 0v-.5a.5.5 0 0 1 .5-.5H3a5 5 0 0 0 4.5 4.975"/>
+    \\</svg>
+;
+
 // ============================================================================
 // Color Type (compatible with Vapor's color system)
 // ============================================================================
@@ -900,135 +907,89 @@ pub const SyntaxHighlighter = struct {
         // code_editor.show_cpy_btn.set(false);
     }
 
+    pub fn renderErrors(highlighter: *SyntaxHighlighter) !void {
+        var error_count: usize = 0;
+        if (highlighter.errors.count() > 0) {
+            List()
+                .width(.percent(100))
+                .height(.percent(100))
+                .padding(.all(0))
+                .listStyle(.none)
+                .direction(.column)
+                .children({
+                var itr = highlighter.errors.iterator();
+                while (itr.next()) |err| {
+                    error_count += 1;
+                    ListItem()
+                        .height(.px(64))
+                        .width(.percent(100))
+                        .background(.hex("#CE1720"))
+                        .padding(.all(4))
+                        .layout(.left_center)
+                        .spacing(8)
+                        .children({
+                        Box()
+                            .padding(.all(8))
+                            .layout(.center)
+                            .border(.round(.black, .all(4)))
+                            .background(.transparentizeHex(.black, 0.2))
+                            .children({
+                            Vapor.Svg(.{ .svg = svg_bug }).style(&.{
+                                .size = .{ .height = .px(16), .width = .px(16) },
+                                .visual = .{ .text_color = .palette(.tint), .fill = .palette(.tint) },
+                            });
+                        });
+
+                        Vapor.Stack().children({
+                            Text(err.value_ptr.message).style(&.{
+                                .visual = .{
+                                    .font_size = 15,
+                                    .font_weight = 500,
+                                    .text_color = .hex("#262626"),
+                                    .font_style = .italic,
+                                },
+                            });
+                            Text(Vapor.fmtln("Column {d}, Line: {d}", .{ err.value_ptr.column, err.value_ptr.line })).style(&.{
+                                .visual = .{
+                                    .font_size = 15,
+                                    .font_weight = 500,
+                                    .text_color = .hex("#262626"),
+                                },
+                            });
+                        });
+                    });
+                }
+            });
+        }
+    }
+
     pub fn renderAST(highlighter: *SyntaxHighlighter, node: ?*Node) !void {
         var current = node;
         while (current) |n| {
             switch (n.tag) {
                 .root => {
-                    Vapor.Stack().style(&.{
-                        .size = .hw(.percent(100), .percent(100)),
+                    Box().style(&.{
+                        .position = .relative,
+                        .size = .square_percent(100),
                         .direction = .column,
                         .layout = .{ .x = .start, .y = .start },
                         .visual = .{
-                            .border = .simple(.palette(.disabled)),
+                            // .background = .hex("#1e1e1e"),
                         },
+                        .padding = .all(12),
+                        // .padding = .tb(10, 10),
                     })({
                         Box().style(&.{
-                            .size = .hw(.percent(100), .percent(100)),
-                            .scroll = .scroll_y(),
-                            .show_scrollbar = false,
+                            .size = .square_percent(100),
+                            .scroll = .scroll_x(),
                             .direction = .column,
                             .layout = .{ .x = .start, .y = .start },
-                            .visual = .{
-                                .background = .palette(.code_background),
-                                // .border_radius = .all(8),
-                            },
                             // .padding = .tb(10, 10),
                         })({
-                            Box().style(&.{
-                                .layout = .x_between_center,
-                                .size = .hw(.px(36), .percent(100)),
-                                .padding = .tblr(0, 0, 12, 12),
-                                .visual = .{
-                                    .border = .bottom(.palette(.disabled)),
-                                },
-                            })({
-                                Box().style(&.{
-                                    .size = .h(.percent(100)),
-                                    .child_gap = 8,
-                                    .layout = .center,
-                                })({
-                                    Text("Example").font(14, 600, .palette(.text_color)).end();
-                                });
-                                Box().style(&.{
-                                    // .size = .w(.percent(10)),
-                                    .layout = .x_even_center,
-                                    .child_gap = 8,
-                                })({
-                                    if (highlighter.use_cpy_btn) {
-                                        CtxButton(copy, .{highlighter})
-                                            .style(&.{
-                                            .position = .relative,
-                                            .size = .square_px(22),
-                                            .transition = .{ .duration = 100 },
-                                            .visual = .{
-                                                .border_radius = .all(4),
-                                                .background = .transparent,
-                                                .text_color = .palette(.disabled),
-                                                .cursor = .pointer,
-                                            },
-                                            .interactive = .{
-                                                .hover = .{ .text_color = .palette(.text_color) },
-                                            },
-                                            .layout = .center,
-                                        })({
-                                            if (highlighter.show_cpy_btn) {
-                                                Icon(.check).style(&.{
-                                                    .visual = .{ .font_size = 16 },
-                                                });
-                                            } else {
-                                                Icon(.clipboard).style(&.{
-                                                    .visual = .{ .font_size = 16 },
-                                                });
-                                            }
-                                        });
-                                    }
-
-                                    Graphic(.{ .src = "/src/assets/zig_simple.svg" }).style(&.{
-                                        .size = .{ .height = .px(16), .width = .px(16) },
-                                        .visual = .{ .text_color = .palette(.tint), .fill = .palette(.tint) },
-                                    });
-                                });
-                            });
-                            Box().style(&.{
-                                .size = .hw(.grow, .percent(100)),
-                                .scroll = .scroll_x(),
-                                .direction = .column,
-                                .layout = .{ .x = .start, .y = .start },
-                                .padding = .tb(12, 12),
-                            })({
-                                Code()({
-                                    try highlighter.renderAST(n.child);
-                                });
+                            Code()({
+                                try highlighter.renderAST(n.child);
                             });
                         });
-                        if (highlighter.errors.count() > 0) {
-                            List()
-                                .width(.percent(100))
-                                .height(.grow)
-                                .padding(.all(0))
-                                .listStyle(.none)
-                                .border(.top(.palette(.disabled)))
-                                .direction(.column)
-                                .children({
-                                var itr = highlighter.errors.iterator();
-                                while (itr.next()) |err| {
-                                    ListItem()
-                                        .height(.px(56))
-                                        .width(.percent(100))
-                                        .background(.palette(.danger))
-                                        .padding(.all(4))
-                                        .direction(.column)
-                                        .layout(.top_left)
-                                        .children({
-                                        Text(err.value_ptr.message).style(&.{
-                                            .visual = .{
-                                                .font_size = 15,
-                                                .font_weight = 500,
-                                                .text_color = .white,
-                                            },
-                                        });
-                                        Text(Vapor.fmtln("Column {d}, Line: {d}", .{ err.value_ptr.column, err.value_ptr.line })).style(&.{
-                                            .visual = .{
-                                                .font_size = 15,
-                                                .font_weight = 500,
-                                                .text_color = .white,
-                                            },
-                                        });
-                                    });
-                                }
-                            });
-                        }
                     });
                 },
 
@@ -1057,7 +1018,7 @@ pub const SyntaxHighlighter = struct {
                         Box().style(&.{
                             .size = .h(.px(22.5)),
                             .layout = .left_center,
-                            .padding = .l(12),
+                            // .padding = .l(24),
                         })({
                             Text(n.data.line.number)
                                 .font(14, 600, .palette(.disabled))
@@ -1070,7 +1031,7 @@ pub const SyntaxHighlighter = struct {
                                     .white_space = .pre,
                                 },
                                 .layout = .left_center,
-                                .padding = .l(12),
+                                // .padding = .l(24),
                                 .font_family = "DM Mono, monospace", // "IBM Plex Mono,monospace",
                             })({
                                 try highlighter.renderAST(n.child);
@@ -1083,7 +1044,6 @@ pub const SyntaxHighlighter = struct {
                     const error_annotation = highlighter.errors.get(token.line + token.column);
                     var text_decoration: ?Vapor.Types.TextDecoration = null;
                     if (error_annotation) |_| {
-                        Vapor.print("Error annotation: {any}\n", .{token.type});
                         text_decoration = .{ .type = .underline, .style = .wavy, .color = .palette(.danger) };
                     }
                     switch (token.type) {
@@ -1092,7 +1052,7 @@ pub const SyntaxHighlighter = struct {
                                 .visual = .{
                                     .font_size = if (Vapor.isMobile()) 16 else 15,
                                     .font_weight = 400,
-                                    .text_color = .palette(.code_keyword_color),
+                                    .text_color = .hex("#2BACCC"),
                                 },
                             });
                         },
@@ -1101,7 +1061,7 @@ pub const SyntaxHighlighter = struct {
                                 .visual = .{
                                     .font_size = if (Vapor.isMobile()) 16 else 15,
                                     .font_weight = 400,
-                                    .text_color = .palette(.code_text_color),
+                                    .text_color = .hex("#262626"),
                                     .text_decoration = text_decoration,
                                 },
                             });
@@ -1111,8 +1071,8 @@ pub const SyntaxHighlighter = struct {
                                 .visual = .{
                                     .font_size = if (Vapor.isMobile()) 16 else 15,
                                     .font_weight = 400,
-                                    .text_color = .palette(.code_operator_color),
                                     .text_decoration = text_decoration,
+                                    .text_color = .hex("#6F6F6F"),
                                 },
                             });
                         },
@@ -1121,7 +1081,7 @@ pub const SyntaxHighlighter = struct {
                                 .visual = .{
                                     .font_size = if (Vapor.isMobile()) 16 else 15,
                                     .font_weight = 400,
-                                    .text_color = .palette(.code_identifier_color),
+                                    .text_color = .hex("#262626"),
                                     .text_decoration = text_decoration,
                                 },
                             });
@@ -1177,7 +1137,7 @@ pub const SyntaxHighlighter = struct {
                                     .visual = .{
                                         .font_size = if (Vapor.isMobile()) 16 else 15,
                                         .font_weight = 400,
-                                        .text_color = .palette(.code_text_color),
+                                        .text_color = .hex("#262626"),
                                     },
                                 });
                             }
@@ -1188,7 +1148,7 @@ pub const SyntaxHighlighter = struct {
                                 .visual = .{
                                     .font_size = if (Vapor.isMobile()) 16 else 15,
                                     .font_weight = 400,
-                                    .text_color = .palette(.code_text_color),
+                                    .text_color = .hex("#262626"),
                                 },
                             });
                         },
